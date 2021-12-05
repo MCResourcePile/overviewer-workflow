@@ -1,8 +1,14 @@
 name: build
 
 on:
-  push:
-    branches: master
+  workflow_call:
+    inputs:
+      DEPLOY_BRANCH:
+        required: true
+        type: string
+    secrets:
+      TOKEN:
+        required: true
     
 jobs:
   build:
@@ -12,61 +18,63 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         
-      - name: checkout gh-pages
+      - name: checkout ${{ inputs.DEPLOY_BRANCH }}
         uses: actions/checkout@v2
         with:
-          ref: gh-pages
+          ref: ${{ inputs.DEPLOY_BRANCH }}
           path: out/maps
 
-      - name: get changed files
+      - name: jitterbit get-changed-files
+        id: files
+        uses: jitterbit/get-changed-files@v1
+          
+      - name: install python libs
         run: |
-          echo "::set-output name=ts::$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep .ts$ | xargs)"
+          sudo apt-get update --fix-missing
+          sudo apt-get install build-essential
+          sudo apt-get install python3-pil python3-dev python3-numpy
           
-      # - name: install python libs
-      #   run: |
-      #     sudo apt-get update --fix-missing
-      #     sudo apt-get install build-essential
-      #     sudo apt-get install python3-pil python3-dev python3-numpy
+      - name: download minecraft textures
+        run: |
+          VERSION=1.16.1
+          mkdir -p ~/.minecraft/versions/${VERSION}/
+          wget https://overviewer.org/textures/${VERSION} -O ~/.minecraft/versions/${VERSION}/${VERSION}.jar
           
-      # - name: download minecraft textures
-      #   run: |
-      #     VERSION=1.16.2
-      #     mkdir -p ~/.minecraft/versions/${VERSION}/
-      #     wget https://overviewer.org/textures/${VERSION} -O ~/.minecraft/versions/${VERSION}/${VERSION}.jar
+      - name: build overviewer
+        run: |
+          cd /usr/local/src
+          sudo git clone git://github.com/overviewer/Minecraft-Overviewer.git
+          cd Minecraft-Overviewer
+          sudo git checkout 50b84e95b5a9505b6db4c1c0435f54b0a39a292b
+          sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/Imaging.h
+          sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/ImagingUtils.h
+          sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/ImPlatform.h
           
-      # - name: build overviewer
-      #   run: |
-      #     cd /usr/local/src
-      #     sudo git clone git://github.com/overviewer/Minecraft-Overviewer.git
-      #     cd Minecraft-Overviewer
-      #     sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/Imaging.h
-      #     sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/ImagingUtils.h
-      #     sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/ImPlatform.h
-          
-      #     sudo python3 setup.py build
-      #     sudo ln -s /usr/local/src/Minecraft-Overviewer/overviewer.py /usr/local/bin/mc-ovw
-      #     which mc-ovw
+          sudo python3 setup.py build
+          sudo ln -s /usr/local/src/Minecraft-Overviewer/overviewer.py /usr/local/bin/mc-ovw
+          which mc-ovw
                   
-      # - name: generate maps overview
-      #   run: |
-      #     for map in maps/*/; do
-      #       map=${map%*/}
-      #       out=out/$map
-      #       mkdir -p $out
-      #       mc-ovw --rendermodes=smooth-lighting $map $out || true
-      #       if [[ $map == "maps/mistforge" ]]; then
-      #         break
-      #       fi
-      #     done
+      - name: generate maps overview
+        run: |
+          arr=(${{ steps.files.outputs.added_modified }})
+          for path in ${arr[@]}; do
+            if [[ "$path" == *"/level.dat" ]]; then
+              mapPath=${path%/level.dat}
+              echo "$mapPath"
+              out=out/$map
+              mkdir -p $out
+              mc-ovw --rendermodes=smooth-lighting $map $out || true
+            fi
+          done
       
-      # - name: deploy to github pages
-      #   if: github.event_name != 'pull_request'
-      #   uses: JamesIves/github-pages-deploy-action@3.7.1
-      #   with:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     BASE_BRANCH: master
-      #     BRANCH: gh-pages
-      #     FOLDER: out/maps
-      #     CLEAN: true
-      #     GIT_CONFIG_EMAIL: MCResourcePile@gmail.com
-      #     COMMIT_MESSAGE: Deploy to GitHub Pages - ${{ github.sha }}
+      - name: deploy to github pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@3.7.1
+        with:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          BASE_BRANCH: ${{ github.base_ref }}
+          BRANCH: ${{ inputs.DEPLOY_BRANCH }}
+          FOLDER: out/maps
+          CLEAN: true
+          GIT_CONFIG_EMAIL: MCResourcePile@gmail.com
+          COMMIT_MESSAGE: Deploy to GitHub Pages - ${{ github.sha }}
