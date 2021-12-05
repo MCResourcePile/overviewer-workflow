@@ -15,16 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     
-      - name: checkout
+      - name: actions/checkout
         uses: actions/checkout@v2
-        
-      - name: checkout ${{ inputs.DEPLOY_BRANCH }}
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ inputs.DEPLOY_BRANCH }}
-          path: out/maps
 
-      - name: jitterbit get-changed-files
+      - name: jitterbit/get-changed-files
         id: files
         uses: jitterbit/get-changed-files@v1
           
@@ -60,10 +54,10 @@ jobs:
           for path in ${arr[@]}; do
             if [[ "$path" == *"/level.dat" ]]; then
               mapPath=${path%/level.dat}
+              outPath=out/$mapPath
+              mkdir -p $outPath
               echo "$mapPath"
-              out=out/$map
-              mkdir -p $out
-              mc-ovw --rendermodes=smooth-lighting $map $out || true
+              mc-ovw --rendermodes=smooth-lighting $mapPath $outPath || true
             fi
           done
       
