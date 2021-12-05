@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.DEPLOY_BRANCH }}
-          path: out
+          path: out/maps
 
       - name: jitterbit/get-changed-files
         id: files
