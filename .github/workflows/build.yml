@@ -18,6 +18,12 @@ jobs:
       - name: actions/checkout
         uses: actions/checkout@v2
 
+      - name: actions/checkout ${{ inputs.DEPLOY_BRANCH }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.DEPLOY_BRANCH }}
+          path: out
+
       - name: jitterbit/get-changed-files
         id: files
         uses: jitterbit/get-changed-files@v1
