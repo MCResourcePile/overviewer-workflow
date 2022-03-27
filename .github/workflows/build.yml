@@ -43,7 +43,7 @@ jobs:
       - name: build overviewer
         run: |
           cd /usr/local/src
-          sudo git clone git://github.com/overviewer/Minecraft-Overviewer.git
+          sudo git clone https://github.com/overviewer/Minecraft-Overviewer.git
           cd Minecraft-Overviewer
           sudo git checkout 50b84e95b5a9505b6db4c1c0435f54b0a39a292b
           sudo curl -O https://raw.githubusercontent.com/python-pillow/Pillow/master/src/libImaging/Imaging.h
